@@ -10,6 +10,9 @@ public class EyeManager : MonoBehaviour
     public ARRaytracer leftEyeARRaytracer;
     public ARRaytracer rightEyeARRaytracer;
 
+    public bool showGaze = true;
+    public GameObject gazeObject;
+
     public GameObject constrainingQuad;
     public bool quadConstraint;
     public float ipd = 0.064f;
@@ -29,6 +32,28 @@ public class EyeManager : MonoBehaviour
     public Transform rightEye;
 
     private PupilListener listener;
+
+    public Ray LeftEyeRay { get; private set; }
+    public Ray RightEyeRay { get; private set; }
+
+    public Ray LeftGazeRay
+    {
+        get
+        {
+            return new Ray(LeftEyeRay.origin, LeftOpticalToVisual * LeftEyeRay.direction);
+        }
+    }
+
+    public Ray RightGazeRay
+    {
+        get
+        {
+            return new Ray(RightEyeRay.origin, RightOpticalToVisual * RightEyeRay.direction);
+        }
+    }
+
+    public Quaternion LeftOpticalToVisual { get; set; } = Quaternion.identity;
+    public Quaternion RightOpticalToVisual { get; set; } = Quaternion.identity;
 
     void OnEnable()
     {
@@ -81,6 +106,7 @@ public class EyeManager : MonoBehaviour
                 globalRay.origin = rightEye.position;
                 globalRay.direction = rightCam.TransformDirection(localDir);
                 Debug.DrawRay(globalRay.origin, globalRay.direction, Color.red);
+                RightEyeRay = globalRay;
             }
             else //left
             {
@@ -95,6 +121,7 @@ public class EyeManager : MonoBehaviour
                 globalRay.origin = leftEye.position;
                 globalRay.direction = leftCam.TransformDirection(localDir);
                 Debug.DrawRay(globalRay.origin, globalRay.direction, Color.green);
+                LeftEyeRay = globalRay;
             }
 
             var dist = Vector3.Distance(leftEye.position, rightEye.position);
@@ -127,6 +154,23 @@ public class EyeManager : MonoBehaviour
 
         leftEyeARRaytracer.ScheduleCreateDistortionMesh();
         rightEyeARRaytracer.ScheduleCreateDistortionMesh();
+
+        if (showGaze == true)
+        {
+            var plane = new Plane(-transform.forward, 0.5f);
+            float enter;
+            plane.Raycast(LeftGazeRay, out enter);
+            Vector3 point = LeftGazeRay.GetPoint(enter);
+            plane.Raycast(RightGazeRay, out enter);
+            point += RightGazeRay.GetPoint(enter);
+            point /= 2;
+            gazeObject.transform.position = point;
+            gazeObject.SetActive(true);
+        }
+        else if (gazeObject != null)
+        {
+            gazeObject.SetActive(false);
+        }
     }
 
     private void Awake()
